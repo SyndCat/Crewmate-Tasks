@@ -67,7 +67,7 @@ textarea{width:100%;min-height:200px;margin:10px 0;background:var(--bg);color:va
   </div>
 
   <div class="msg" id="msg" role="status" aria-live="polite"></div>
-  <ul id="list"></ul>
+  <ul id="list"><li class="empty">This preview can’t roll tasks. Open the page in your phone’s browser to roll. All tasks: Puzzle, Cup Stack, Fake Fishing, 1-2 Buffalo, Photo Booth, UV Scan, Create a Shot, Trash Shot, Water Refuel, Putt Putt, Coded Entry.</li></ul>
 
   <details id="edit">
     <summary>Edit the task list</summary>
@@ -80,7 +80,7 @@ textarea{width:100%;min-height:200px;margin:10px 0;background:var(--bg);color:va
 <script>
 (function(){
   var DEFAULTS = ["Puzzle","Cup Stack","Fake Fishing","1-2 Buffalo","Photo Booth","UV Scan","Create a Shot","Trash Shot","Water Refuel","Putt Putt","Coded Entry"];
-  var KEY_T="ampick:tasks", KEY_N="ampick:count";
+  var KEY_T="ampick:tasks", KEY_N="ampick:count", KEY_P="ampick:picked";
   var tasks=DEFAULTS.slice(), picked=[];
   var $=function(id){return document.getElementById(id)};
   var listEl=$("list"), msgEl=$("msg"), ta=$("ta");
@@ -88,6 +88,12 @@ textarea{width:100%;min-height:200px;margin:10px 0;background:var(--bg);color:va
   function load(){
   }
   function store(k,v){try{localStorage.setItem(k,v)}catch(e){}}
+  function restore(){
+    try{
+      var p=JSON.parse(localStorage.getItem(KEY_P)||"null");
+      if(Array.isArray(p)) picked=p.filter(function(x){return x&&typeof x.t==="string"&&tasks.indexOf(x.t)>=0}).map(function(x){return {t:x.t,done:!!x.done}});
+    }catch(e){}
+  }
   function shuffle(a){a=a.slice();for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=a[i];a[i]=a[j];a[j]=t}return a}
   function esc(s){return String(s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
   function names(){return picked.map(function(p){return p.t})}
@@ -102,6 +108,7 @@ textarea{width:100%;min-height:200px;margin:10px 0;background:var(--bg);color:va
   }
 
   function render(flashIdx){
+    store(KEY_P,JSON.stringify(picked));
     $("roll").textContent=picked.length?"Roll again":"Roll my tasks";
     if(!picked.length){listEl.innerHTML='<li class="empty">No tasks yet. Press “Roll my tasks” to get your set.</li>';return}
     listEl.innerHTML=picked.map(function(p,i){
@@ -126,7 +133,12 @@ textarea{width:100%;min-height:200px;margin:10px 0;background:var(--bg);color:va
     if(!pool.length){say("No other tasks left to swap in.");return}
     picked[i]={t:pool[Math.floor(Math.random()*pool.length)],done:false};say("");render(i);
   });
-  $("roll").addEventListener("click",roll);
+  $("roll").addEventListener("click",function(){
+    var open=picked.some(function(p){return !p.done});
+    var ok=true;
+    if(open){try{ok=window.confirm("Roll new tasks? This replaces the tasks you have now.")}catch(e){}}
+    if(ok) roll();
+  });
   $("save").addEventListener("click",function(){
     var t=ta.value.split("\n").map(function(s){return s.trim()}).filter(Boolean);
     t=t.filter(function(x,i){return t.indexOf(x)===i});
@@ -135,7 +147,7 @@ textarea{width:100%;min-height:200px;margin:10px 0;background:var(--bg);color:va
     say("Saved "+tasks.length+" tasks."); render();
   });
 
-  load(); ta.value=tasks.join("\n"); render();
+  load(); restore(); ta.value=tasks.join("\n"); render();
 })();
 </script>
 </body>
